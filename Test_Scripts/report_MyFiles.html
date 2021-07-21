@@ -1,0 +1,3552 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <style>body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  /* do not increase min-width as some may use split screens */
+  min-width: 800px;
+  color: #999;
+}
+
+h1 {
+  font-size: 24px;
+  color: black;
+}
+
+h2 {
+  font-size: 16px;
+  color: black;
+}
+
+p {
+  color: black;
+}
+
+a {
+  color: #999;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/******************************
+ * SUMMARY INFORMATION
+ ******************************/
+#environment td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+}
+#environment tr:nth-child(odd) {
+  background-color: #f6f6f6;
+}
+
+/******************************
+ * TEST RESULT COLORS
+ ******************************/
+span.passed,
+.passed .col-result {
+  color: green;
+}
+
+span.skipped,
+span.xfailed,
+span.rerun,
+.skipped .col-result,
+.xfailed .col-result,
+.rerun .col-result {
+  color: orange;
+}
+
+span.error,
+span.failed,
+span.xpassed,
+.error .col-result,
+.failed .col-result,
+.xpassed .col-result {
+  color: red;
+}
+
+/******************************
+ * RESULTS TABLE
+ *
+ * 1. Table Layout
+ * 2. Extra
+ * 3. Sorting items
+ *
+ ******************************/
+/*------------------
+ * 1. Table Layout
+ *------------------*/
+#results-table {
+  border: 1px solid #e6e6e6;
+  color: #999;
+  font-size: 12px;
+  width: 100%;
+}
+#results-table th,
+#results-table td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+  text-align: left;
+}
+#results-table th {
+  font-weight: bold;
+}
+
+/*------------------
+ * 2. Extra
+ *------------------*/
+.log {
+  background-color: #e6e6e6;
+  border: 1px solid #e6e6e6;
+  color: black;
+  display: block;
+  font-family: "Courier New", Courier, monospace;
+  height: 230px;
+  overflow-y: scroll;
+  padding: 5px;
+  white-space: pre-wrap;
+}
+.log:only-child {
+  height: inherit;
+}
+
+div.image {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.image img {
+  width: 320px;
+}
+
+div.video {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.video video {
+  overflow: hidden;
+  width: 320px;
+  height: 240px;
+}
+
+.collapsed {
+  display: none;
+}
+
+.expander::after {
+  content: " (show details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.collapser::after {
+  content: " (hide details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+/*------------------
+ * 3. Sorting items
+ *------------------*/
+.sortable {
+  cursor: pointer;
+}
+
+.sort-icon {
+  font-size: 0px;
+  float: left;
+  margin-right: 5px;
+  margin-top: 5px;
+  /*triangle*/
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+.inactive .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #E6E6E6;
+}
+.asc.active .sort-icon {
+  /*finish triangle*/
+  border-bottom: 8px solid #999;
+}
+.desc.active .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #999;
+}
+</style></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>report.html</h1>
+    <p>Report generated on 06-Jul-2021 at 15:09:14 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Summary</h2>
+    <p>139 tests ran in 12424.60 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">67 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">72 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_05]</td>
+          <td class="col-duration">103.11</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_05
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_06]</td>
+          <td class="col-duration">45.66</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Recent Files.wav&quot; alias playsound_0.7159843396871658<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Recent Files.mp3&quot; alias playsound_0.9088737140535805<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_06
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_16]</td>
+          <td class="col-duration">45.86</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Recent Files.wav&quot; alias playsound_0.8743971042872976<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Recent Files.mp3&quot; alias playsound_0.27275429858722444<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_16
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_28]</td>
+          <td class="col-duration">31.02</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_28
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_29]</td>
+          <td class="col-duration">100.93</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/View previous.wav&quot; alias playsound_0.8626291113279619<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/View previous.mp3&quot; alias playsound_0.8745655591292975<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_29
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 4 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_36]</td>
+          <td class="col-duration">139.68</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Document Viewer.wav&quot; alias playsound_0.12605563741898929<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Document Viewer.mp3&quot; alias playsound_0.17615095820101756<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_36
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+Recent Applications -&gt; PASS
+Document Viewer: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_37]</td>
+          <td class="col-duration">67.29</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_37
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_46]</td>
+          <td class="col-duration">66.68</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_46
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_63]</td>
+          <td class="col-duration">105.87</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_63
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom Level: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_64]</td>
+          <td class="col-duration">46.43</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDF TEST1.wav&quot; alias playsound_0.8438128422110045<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDF TEST1.mp3&quot; alias playsound_0.7702647541592514<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_64
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_65]</td>
+          <td class="col-duration">106.04</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_65
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom Level: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_66]</td>
+          <td class="col-duration">107.77</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_66
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_67]</td>
+          <td class="col-duration">86.43</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/View next.wav&quot; alias playsound_0.6535162204144224<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/View next.mp3&quot; alias playsound_0.11812779478802393<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_67
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_68]</td>
+          <td class="col-duration">87.93</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/View previous.wav&quot; alias playsound_0.8930500734931827<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/View previous.mp3&quot; alias playsound_0.10286687577008191<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_68
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 4 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_69]</td>
+          <td class="col-duration">110.03</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_69
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Page 1: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_70]</td>
+          <td class="col-duration">113.35</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_70
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Page 1: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_71]</td>
+          <td class="col-duration">113.38</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_71
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Page 1: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_72]</td>
+          <td class="col-duration">74.91</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_72
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 2 -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_73]</td>
+          <td class="col-duration">101.83</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.WebDriverException: Message: An unknown server-side error occurred while processing the command. Original error: Could not proxy command to the remote server. Original error: socket hang up</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.WebDriverException: Message: An unknown server-side error occurred while processing the command. Original error: Error executing adbExec. Original error: &#x27;Command &#x27;C:\\Users\\josep\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe -P 5037 -s 1d776852 shell &#x27;settings delete global hidden_api_policy_pre_p_apps;settings delete global hidden_api_policy_p_apps;settings delete global hidden_api_policy&#x27;&#x27; exited with code 224&#x27;; Stderr: &#x27;&#x27;; Code: &#x27;224&#x27;</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_73
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_74]</td>
+          <td class="col-duration">12.87</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_74
+Navigate Home -&gt; FAIL
+<br/> ------------------------------Captured stderr call------------------------------ <br/>adb.exe: no devices/emulators found
+error: no devices/emulators found
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_75]</td>
+          <td class="col-duration">12.88</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_75
+Navigate Home -&gt; FAIL
+<br/> ------------------------------Captured stderr call------------------------------ <br/>adb.exe: no devices/emulators found
+error: no devices/emulators found
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_76]</td>
+          <td class="col-duration">12.79</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_76
+Navigate Home -&gt; FAIL
+<br/> ------------------------------Captured stderr call------------------------------ <br/>adb.exe: no devices/emulators found
+error: no devices/emulators found
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_77]</td>
+          <td class="col-duration">13.67</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_77
+Navigate Home -&gt; FAIL
+<br/> ------------------------------Captured stderr call------------------------------ <br/>adb.exe: no devices/emulators found
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_78]</td>
+          <td class="col-duration">84.86</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Go to Page 3.wav&quot; alias playsound_0.3521466316336298<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Go to Page 3.mp3&quot; alias playsound_0.7822697512671546<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_78
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 12 -&gt; PASS
+Page 1: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_79]</td>
+          <td class="col-duration">63.24</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Select item 13.wav&quot; alias playsound_0.8699375217312194<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Select item 13.mp3&quot; alias playsound_0.4591358245426357<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_79
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_82]</td>
+          <td class="col-duration">106.29</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_82
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Page 1: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_83]</td>
+          <td class="col-duration">106.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_83
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Page 1: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_84]</td>
+          <td class="col-duration">106.32</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_84
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Page 1: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_86]</td>
+          <td class="col-duration">106.18</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_86
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Page 1: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_92]</td>
+          <td class="col-duration">99.32</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Select item 20.wav&quot; alias playsound_0.5403937679527286<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Select item 20.mp3&quot; alias playsound_0.5142859089448407<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_92
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit mode: Verification in progress
+Verification success
+Edit mode -&gt; PASS
+Cancel edit: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_106]</td>
+          <td class="col-duration">63.37</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Password.wav&quot; alias playsound_0.5177882682399961<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Password.mp3&quot; alias playsound_0.9358880517430964<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_106
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_107]</td>
+          <td class="col-duration">63.69</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Not Password.wav&quot; alias playsound_0.7101110440687551<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Not Password.mp3&quot; alias playsound_0.6737704112079212<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_107
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_108]</td>
+          <td class="col-duration">64.38</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDFA.wav&quot; alias playsound_0.553691895088957<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDFA.mp3&quot; alias playsound_0.4833925668455038<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_108
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_109]</td>
+          <td class="col-duration">63.48</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDFE.wav&quot; alias playsound_0.7723654943607826<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDFE.mp3&quot; alias playsound_0.41133664685813776<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_109
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_110]</td>
+          <td class="col-duration">63.59</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDFX.wav&quot; alias playsound_0.39695784518634647<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/PDFX.mp3&quot; alias playsound_0.1692180404746355<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_110
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_114]</td>
+          <td class="col-duration">106.88</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Media player.wav&quot; alias playsound_0.00662818174882418<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Media player.mp3&quot; alias playsound_0.9296573383144328<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_114
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Camera: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+select item 1 -&gt; PASS
+Recent Applications -&gt; PASS
+Media player: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_115]</td>
+          <td class="col-duration">48.63</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_115
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_120]</td>
+          <td class="col-duration">97.98</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_120
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Audio: Verification in progress
+Verification success
+Audio -&gt; PASS
+Audio: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Audio Forward -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_121]</td>
+          <td class="col-duration">49.31</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_121
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_122]</td>
+          <td class="col-duration">90.95</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/select volume 5.wav&quot; alias playsound_0.8873075351916397<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/select volume 5.mp3&quot; alias playsound_0.02609344700196936<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_122
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Audio: Verification in progress
+Verification success
+Audio -&gt; PASS
+Audio: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_124]</td>
+          <td class="col-duration">31.67</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_124
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_125]</td>
+          <td class="col-duration">119.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_125
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Video Pause -&gt; PASS
+Video Play: Verification in progress
+Verification success
+Video Play -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_129]</td>
+          <td class="col-duration">93.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/select volume 5.wav&quot; alias playsound_0.31856880550348343<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/select volume 5.mp3&quot; alias playsound_0.275108792036054<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_129
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_130]</td>
+          <td class="col-duration">94.90</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Brightness level 10.wav&quot; alias playsound_0.1494584439997787<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Brightness level 10.mp3&quot; alias playsound_0.9992752928385202<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_130
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_131]</td>
+          <td class="col-duration">94.28</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Brightness level 5.wav&quot; alias playsound_0.9254729002894204<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   playsound.PlaysoundException: </span><br/>        Error 275 for command:<br/>            open &quot;Tones/Brightness level 5.mp3&quot; alias playsound_0.38163999409002325<br/>        Cannot find the specified file.  Make sure the path and filename are correct.<br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_131
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_133]</td>
+          <td class="col-duration">13.36</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_133
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_134]</td>
+          <td class="col-duration">136.46</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_134
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Navigate Back -&gt; PASS
+camera: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_135]</td>
+          <td class="col-duration">13.43</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_135
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_137]</td>
+          <td class="col-duration">95.58</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_137
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Audio: Verification in progress
+Verification success
+Audio -&gt; PASS
+Audio: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_139]</td>
+          <td class="col-duration">100.47</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_139
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Audio: Verification in progress
+Verification success
+Audio -&gt; PASS
+Audio: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_149]</td>
+          <td class="col-duration">24.24</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_149
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_150]</td>
+          <td class="col-duration">80.06</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_150
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_151]</td>
+          <td class="col-duration">15.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_151
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_154]</td>
+          <td class="col-duration">58.13</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_154
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_155]</td>
+          <td class="col-duration">14.53</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_155
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_156]</td>
+          <td class="col-duration">60.64</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_156
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_157]</td>
+          <td class="col-duration">63.68</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_157
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_158]</td>
+          <td class="col-duration">36.21</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_158
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_161]</td>
+          <td class="col-duration">42.13</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_161
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_162]</td>
+          <td class="col-duration">41.86</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_162
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_165]</td>
+          <td class="col-duration">13.55</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_165
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_166]</td>
+          <td class="col-duration">39.61</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_166
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_168]</td>
+          <td class="col-duration">55.06</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_168
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_169]</td>
+          <td class="col-duration">42.40</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_169
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_170]</td>
+          <td class="col-duration">13.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_170
+Navigate Home -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_175]</td>
+          <td class="col-duration">92.53</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_175
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_183]</td>
+          <td class="col-duration">90.32</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_183
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+By Name -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_192]</td>
+          <td class="col-duration">30.98</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_192
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_195]</td>
+          <td class="col-duration">84.61</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_195
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Drives: Verification in progress
+Verification success
+My Drives -&gt; PASS
+My Device: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_196]</td>
+          <td class="col-duration">31.35</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_196
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_197]</td>
+          <td class="col-duration">48.85</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   AssertionError: Voice command failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_197
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Drives: Verification in progress
+Verification success
+My Drives -&gt; FAIL
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_198]</td>
+          <td class="col-duration">84.45</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: An element could not be located on the page using the given search parameters.</span><br/><br/>During handling of the above exception, another exception occurred:<br/><span class="error">E   AssertionError: Verification failed</span><br/> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_198
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Drives: Verification in progress
+Verification success
+My Drives -&gt; PASS
+My Device: Verification in progress
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_01]</td>
+          <td class="col-duration">101.95</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_01
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Programs -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/> -------------------------------Captured log call-------------------------------- <br/>WARNING  urllib3.connectionpool:connectionpool.py:780 Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by &#x27;ConnectTimeoutError(&lt;urllib3.connection.HTTPConnection object at 0x000001CA1E30B970&gt;, &#x27;Connection to 127.0.0.1 timed out. (connect timeout=1.0)&#x27;)&#x27;: /wd/hub/status<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_03]</td>
+          <td class="col-duration">205.40</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_03
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+My Media: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Drives: Verification in progress
+Verification success
+My Drives -&gt; PASS
+My Drives: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_04]</td>
+          <td class="col-duration">208.92</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_04
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Select item 3 -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+Select item 4 -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 2 -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Media: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+My Media: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Drives: Verification in progress
+Verification success
+Select item 5 -&gt; PASS
+My Drives: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_07]</td>
+          <td class="col-duration">81.09</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_07
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+More Options -&gt; PASS
+Hide Options: Verification in progress
+Verification success
+Hide Options -&gt; PASS
+Recent Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_09]</td>
+          <td class="col-duration">68.04</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_09
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Show help -&gt; PASS
+Hide help -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_10]</td>
+          <td class="col-duration">63.21</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_10
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_11]</td>
+          <td class="col-duration">63.31</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_11
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_12]</td>
+          <td class="col-duration">100.12</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_12
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_13]</td>
+          <td class="col-duration">116.74</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_13
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+Recent Applications -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_14]</td>
+          <td class="col-duration">84.48</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_14
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_15]</td>
+          <td class="col-duration">99.09</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_15
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Back One Level -&gt; PASS
+Camera: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_17]</td>
+          <td class="col-duration">99.63</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_17
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Show Notifications -&gt; PASS
+Manage: Verification in progress
+Verification success
+Hide Notifications -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_21]</td>
+          <td class="col-duration">63.24</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_21
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_22]</td>
+          <td class="col-duration">63.95</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_22
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Select item 3 -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_24]</td>
+          <td class="col-duration">117.58</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_24
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Recent applications -&gt; PASS
+Document viewer: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_26]</td>
+          <td class="col-duration">100.17</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_26
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_27]</td>
+          <td class="col-duration">192.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_27
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Zoom Level 2 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+Zoom Level 3 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+Zoom Level 4 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+Zoom Level 5 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+Zoom Level 1 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_30]</td>
+          <td class="col-duration">138.36</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_30
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Zoom Level 2 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+Freeze Window -&gt; PASS
+Control Window: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_31]</td>
+          <td class="col-duration">156.93</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_31
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Zoom Level 2 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+Freeze Window -&gt; PASS
+Control Window: Verification in progress
+Verification success
+Control Window -&gt; PASS
+Freeze Window: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_32]</td>
+          <td class="col-duration">136.94</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_32
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Zoom Level 2 -&gt; PASS
+Zoom Level: Verification in progress
+Verification success
+Reset Window -&gt; PASS
+Freeze Window: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_34]</td>
+          <td class="col-duration">117.45</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_34
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+Back One level: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_35]</td>
+          <td class="col-duration">120.79</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_35
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_38]</td>
+          <td class="col-duration">122.69</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_38
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+Show help -&gt; PASS
+Hide Help -&gt; PASS
+Zoom level: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_45]</td>
+          <td class="col-duration">116.76</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_45
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_47]</td>
+          <td class="col-duration">135.55</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_47
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select All Items -&gt; PASS
+Clear Selection: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_49]</td>
+          <td class="col-duration">153.55</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_49
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select All Items -&gt; PASS
+Clear Selection: Verification in progress
+Verification success
+Delete Selected -&gt; PASS
+Confirm Deletion: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_50]</td>
+          <td class="col-duration">154.14</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_50
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select All Items -&gt; PASS
+Clear Selection: Verification in progress
+Verification success
+Clear Selection -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_51]</td>
+          <td class="col-duration">153.59</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_51
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select All Items -&gt; PASS
+Clear Selection: Verification in progress
+Verification success
+Cancel Edit -&gt; PASS
+Camera: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_52]</td>
+          <td class="col-duration">131.39</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_52
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+By date -&gt; PASS
+Sort Files -&gt; PASS
+By Name -&gt; PASS
+Hide Options: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_53]</td>
+          <td class="col-duration">121.63</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_53
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+By Name -&gt; PASS
+Hide Options: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_54]</td>
+          <td class="col-duration">121.38</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_54
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+By date -&gt; PASS
+Hide Options: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_56]</td>
+          <td class="col-duration">81.72</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_56
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Photos: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_57]</td>
+          <td class="col-duration">81.35</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_57
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Photos: Verification in progress
+Verification success
+My Photos -&gt; PASS
+My Photos: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_60]</td>
+          <td class="col-duration">63.53</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_60
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_61]</td>
+          <td class="col-duration">65.66</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_61
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Select item 2 -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_91]</td>
+          <td class="col-duration">99.11</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_91
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit mode: Verification in progress
+Verification success
+Edit mode -&gt; PASS
+Cancel edit: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_93]</td>
+          <td class="col-duration">117.18</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_93
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit mode: Verification in progress
+Verification success
+Edit mode -&gt; PASS
+Cancel edit: Verification in progress
+Verification success
+Select all items -&gt; PASS
+Delete Selected: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_96]</td>
+          <td class="col-duration">135.47</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_96
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit mode: Verification in progress
+Verification success
+Edit mode -&gt; PASS
+Cancel edit: Verification in progress
+Verification success
+Select all items -&gt; PASS
+Delete Selected: Verification in progress
+Verification success
+Clear selection -&gt; PASS
+Cancel edit: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_97]</td>
+          <td class="col-duration">135.05</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_97
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit mode: Verification in progress
+Verification success
+Edit mode -&gt; PASS
+Cancel edit: Verification in progress
+Verification success
+Select all items -&gt; PASS
+Delete Selected: Verification in progress
+Verification success
+Cancel edit -&gt; PASS
+My Documents: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_98]</td>
+          <td class="col-duration">98.90</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_98
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+Hide Options: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_99]</td>
+          <td class="col-duration">104.32</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_99
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+By Name -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_100]</td>
+          <td class="col-duration">104.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_100
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+By Date -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_102]</td>
+          <td class="col-duration">81.02</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_102
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_103]</td>
+          <td class="col-duration">81.21</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_103
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Documents: Verification in progress
+Verification success
+My Documents -&gt; PASS
+My Documents: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_111]</td>
+          <td class="col-duration">63.23</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_111
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+My Media: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_112]</td>
+          <td class="col-duration">63.74</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_112
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+My Media: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_116]</td>
+          <td class="col-duration">86.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_116
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Camera: Verification in progress
+Verification success
+Camera -&gt; PASS
+Camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_117]</td>
+          <td class="col-duration">104.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_117
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Audio: Verification in progress
+Verification success
+Audio -&gt; PASS
+Audio: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Audio Pause -&gt; PASS
+Audio Play: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_118]</td>
+          <td class="col-duration">109.85</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_118
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Audio: Verification in progress
+Verification success
+Audio -&gt; PASS
+Audio: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Audio Pause -&gt; PASS
+Audio Play: Verification in progress
+Verification success
+Audio Play -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_119]</td>
+          <td class="col-duration">100.08</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_119
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+Audio: Verification in progress
+Verification success
+Audio -&gt; PASS
+Audio: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Audio Rewind -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_126]</td>
+          <td class="col-duration">97.90</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_126
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Video Rewind -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_127]</td>
+          <td class="col-duration">98.70</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_127
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Video Forward -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_128]</td>
+          <td class="col-duration">99.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_128
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+select volume 10 -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_136]</td>
+          <td class="col-duration">114.37</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_136
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_138]</td>
+          <td class="col-duration">140.45</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_138
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+Recent Applications -&gt; PASS
+Media Player: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_140]</td>
+          <td class="col-duration">247.17</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_140
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+Recent Applications -&gt; PASS
+Media Player: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_141]</td>
+          <td class="col-duration">131.35</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_141
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Media: Verification in progress
+Verification success
+My Media -&gt; PASS
+camera: Verification in progress
+Verification success
+camera -&gt; PASS
+camera: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+show help -&gt; PASS
+Hide help -&gt; PASS
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_176]</td>
+          <td class="col-duration">159.37</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_176
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select item 1 -&gt; PASS
+Delete selected: Verification in progress
+Verification success
+Delete selected -&gt; PASS
+Confirm Deletion: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_177]</td>
+          <td class="col-duration">119.74</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_177
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select all items -&gt; PASS
+Delete selected: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_180]</td>
+          <td class="col-duration">138.04</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_180
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select all items -&gt; PASS
+Delete selected: Verification in progress
+Verification success
+Clear selection -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_181]</td>
+          <td class="col-duration">138.13</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_181
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+More Options -&gt; PASS
+Edit Mode: Verification in progress
+Verification success
+Edit Mode -&gt; PASS
+Cancel Edit: Verification in progress
+Verification success
+Select all items -&gt; PASS
+Delete selected: Verification in progress
+Verification success
+Cancel Edit -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_182]</td>
+          <td class="col-duration">101.12</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_182
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+Hide Options: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_184]</td>
+          <td class="col-duration">105.53</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_184
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+More Options -&gt; PASS
+Sort Files: Verification in progress
+Verification success
+Sort Files -&gt; PASS
+By Date -&gt; PASS
+Hide Options: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_186]</td>
+          <td class="col-duration">82.75</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_186
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+Navigate Back -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_187]</td>
+          <td class="col-duration">82.68</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_187
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+My Downloads -&gt; PASS
+My Downloads: Verification in progress
+Verification success
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_190]</td>
+          <td class="col-duration">64.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_190
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Drives: Verification in progress
+Verification success
+My Drives -&gt; PASS
+My Drives: Verification in progress
+Verification success
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_cases_verification.py::TestOne::test_case[MyFiles_191]</td>
+          <td class="col-duration">63.92</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>Reading commands of sheet MyFiles_191
+Navigate Home -&gt; PASS
+My Files: Verification in progress
+Verification success
+My Files -&gt; PASS
+My Drives: Verification in progress
+Verification success
+Select item 5 -&gt; PASS
+My Drives: Verification in progress
+Verification success
+<br/></div></td></tr></tbody></table></body></html>
